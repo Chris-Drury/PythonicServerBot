@@ -1,11 +1,14 @@
 # PythonicServerBot written by Chris Drury
 
-from discord.ext import commands
 import os
 import random
 import socket
-import sys
 import subprocess
+import sys
+import time
+import datetime
+
+from discord.ext import commands
 
 DISCORD_TOKEN = os.environ['DISCORD_TOKEN']
 HELP = '''Here are all of my commands:
@@ -31,10 +34,11 @@ SERVER_BATCH = 'start.bat'
 SERVER_IDS={
     'FTB': {
         'authorised_roles': ['Minecraft', 'Creator'],
-        'disk_location': 'C:/Users/User/Documents/MC Server',
+        'cwd': 'C:\\Users\\User\\Documents\\MC Server',
         'host_ip': '108.162.171.117', 
         'host_port': 25565,
-        'CommandLine': None
+        'process': None,
+        'log': None
     }
 }
 
@@ -73,10 +77,23 @@ def up(author_roles, server_id):
     if check_roles(author_roles, authorised_roles):
         response_status = status(server_id)
         if 'down' in response_status:
-            server_details['CommandLine'] = subprocess.Popen(["cmd.exe"],  creationflags=subprocess.CREATE_NEW_CONSOLE)
-            # CommandLine.stdin.write('cd ' + server_details['disk_location'])
-            # CommandLine.stdin.write(SERVER_BATCH)
-            return f'{server_id} server has been started.'
+            server_details['log'] = open(f'{server_id}/Log_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.txt', 'w+')
+            server_details['process'] = subprocess.Popen(["cmd.exe"],  
+                                                            creationflags=subprocess.CREATE_NEW_CONSOLE ,
+                                                            stdin=subprocess.PIPE, 
+                                                            stdout=server_details['log'],
+                                                            cwd=server_details['cwd'],
+                                                            text=True)
+            print(SERVER_BATCH, file=server_details['process'].stdin, flush=True)
+
+            t_end = time.time() + 60 * 15
+            while time.time() < t_end:
+                response_status = status(server_id)
+                if 'up' in response_status: 
+                    print('/list', file=server_details['process'].stdin, flush=True)
+                    return response_status
+
+            return f'There was an issue encountered when starting the {server_id} server... What did you do wrong?'
         else:
             return f'You just wasted my time. {response_status} I\'d very much like you to pay attention next time.'
         
@@ -116,8 +133,8 @@ async def on_message(message):
             await message.channel.send(f'Checking the {server_id} server. Please give me 5 seconds...')
             response = status(server_id)
         elif 'up' in command:
-            await message.channel.send(f'Starting up the {server_id} server...')
-            response = 'This is yet to be implemented!' #up(message.author.roles, server_id)
+            await message.channel.send(f'Starting up the {server_id} server. Please give me up to 15 minutes...')
+            response = up(message.author.roles, server_id)
         elif 'down' in command:
             await message.channel.send(f'Shutting down the {server_id} server...')
             response = down(message.author.roles, server_id)
