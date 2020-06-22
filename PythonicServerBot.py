@@ -13,12 +13,13 @@ from discord.ext import commands
 DISCORD_TOKEN = os.environ['DISCORD_TOKEN']
 HELP = '''Here are all of my commands:
     *Server commands*:
-    s!down <Server id> ......... Shutdown matching server.
+    s!down <Server id> ......X.. Shutdown matching server.
                                     I'll only shutdown the server if no one is on!
     s!up <Server id> ........... Startup matching server.
 
     *Server statuses*:
-    s!status ................... Get the status of every known server
+    s!players <server id> ...X.. Get the player list of the sever you specified! ...Fucking creep.
+    s!status ................X.. Get the status of every known server
     s!status <Server id> ....... Get the status of the server you specified!
                                     I'll check for 5seconds before I make my decision.
 
@@ -27,7 +28,7 @@ HELP = '''Here are all of my commands:
     s!help ..................... Ask me for help... you dumbass
 
     The *server ids* I know are:
-    FTB .. Chris' FTB Minecraft Server
+    FTB ........................ Chris' FTB Minecraft Server
     '''
 PREFIX= 's!'
 SERVER_BATCH = 'start.bat'
@@ -35,7 +36,7 @@ SERVER_IDS={
     'FTB': {
         'authorised_roles': ['Minecraft', 'Creator'],
         'cwd': 'C:\\Users\\User\\Documents\\MC Server',
-        'host_ip': '108.162.171.117', 
+        'host_ip': os.environ['FTB_SERVER_IP'], 
         'host_port': 25565,
         'process': None,
         'log': None
@@ -138,6 +139,8 @@ async def on_message(message):
         elif 'down' in command:
             await message.channel.send(f'Shutting down the {server_id} server...')
             response = down(message.author.roles, server_id)
+        elif 'players' in command:
+            response = 'This is yet to be implemented!'
         else:
             response = 'Why do you torture me like this...' if check_roles(message.author.roles, ['Creator']) else 'What the fuck do you want now?'
 
@@ -151,6 +154,7 @@ async def on_message(message):
             response = 'Fuck you too, asshole'
 
     elif 's!help' in split_message:
+        await message.channel.send('I HAVE BEEN BECKONED!!')
         response = HELP
 
     elif 's!status' in split_message:
@@ -161,6 +165,5 @@ async def on_message(message):
 
     if response:
         await message.channel.send(response)
-
 
 bot.run(DISCORD_TOKEN)
