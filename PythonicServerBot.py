@@ -12,23 +12,25 @@ from discord.ext import commands
 
 DISCORD_TOKEN = os.environ['DISCORD_TOKEN']
 HELP = '''Here are all of my commands:
+    ```
     *Server commands*:
-    s!down <Server id> ......X.. Shutdown matching server.
+    s!down <Server id> .    . Shutdown matching server.
                                     I'll only shutdown the server if no one is on!
-    s!up <Server id> ........... Startup matching server.
+    s!up <Server id> ........ Startup matching server.
 
     *Server statuses*:
-    s!players <server id> ...X.. Get the player list of the sever you specified! ...Fucking creep.
-    s!status ................X.. Get the status of every known server
-    s!status <Server id> ....... Get the status of the server you specified!
+    s!players <server id> . . Get the player list of the sever you specified! ...Fucking creep.
+    s!status ................ Get the status of every known server
+    s!status <Server id> .... Get the status of the server you specified!
                                     I'll check for 5seconds before I make my decision.
 
     *My own commands*:
-    s!fuckoff .................. Shut me down, daddy.
-    s!help ..................... Ask me for help... you dumbass
+    s!fuckoff ............... Shut me down, daddy.
+    s!help .................. Ask me for help... you dumbass
 
     The *server ids* I know are:
-    FTB ........................ Chris' FTB Minecraft Server
+    FTB ...... Chris' FTB Minecraft Server
+    ```
     '''
 PREFIX= 's!'
 SERVER_BATCH = 'start.bat'
@@ -45,6 +47,9 @@ SERVER_IDS={
 
 bot = commands.Bot(command_prefix=PREFIX)
 
+# use this to append custom messages to all sent messages.
+async def send_message(message, response):
+    await message.channel.send(response + '\nOH! And daddy is currently working on my s!players <server id> command!!')
 
 def details(server_id):
     if server_id in SERVER_IDS.keys():
@@ -69,6 +74,13 @@ def status(server_id):
             return f'The {server_id} server is up.'
         else:
             return f'The {server_id} server is down.'
+
+def all_statuses():
+    response = 'Here are the current server statuses:\n ```'
+    for server_id in SERVER_IDS.keys():
+        response += '\n' + status(server_id)
+
+    return response + '```\nAre you happy now? I\'d very much like you to leave me alone now.'
 
 def up(author_roles, server_id):
     server_details = details(server_id)
@@ -147,23 +159,23 @@ async def on_message(message):
     elif 's!fuckoff' in split_message:
         if check_roles(message.author.roles, ['Creator']):
             await message.channel.send('UGH FINE')
-            print("Shutting down...")
             await bot.close()
             raise Exception(f'I was shutdown by {message.author.name}')
         else:
             response = 'Fuck you too, asshole'
 
     elif 's!help' in split_message:
-        await message.channel.send('I HAVE BEEN BECKONED!!')
+        await message.channel.send('I HAVE BEEN BECKONED!!\n')
         response = HELP
 
     elif 's!status' in split_message:
-        response = 'This is yet to be implemented!'
+        await message.channel.send(f'Checking all server statuses. Please give me {len(SERVER_IDS.keys()) * 5} seconds...')
+        response = all_statuses()
 
     else:
         response = 'You don\'t think I can read minds do you? I need a server id.'
 
     if response:
-        await message.channel.send(response)
+        await send_message(message, response)
 
 bot.run(DISCORD_TOKEN)
