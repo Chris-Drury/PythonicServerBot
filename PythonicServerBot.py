@@ -14,34 +14,47 @@ DISCORD_TOKEN = os.environ['DISCORD_TOKEN']
 HELP = '''Here are all of my commands:
 ```
 Server commands:
-s!down <Server id> .    . Shutdown matching server.
+s!down <server id> ...... Shutdown the server.
                                 I'll only shutdown the server if no one is on!
-s!up <Server id> ........ Startup matching server.
-
-Server statuses:
-s!players <server id> . . Get the player list of the sever you specified! ...Fucking creep.
-s!status ................ Get the status of every known server
-s!status <Server id> .... Get the status of the server you specified!
+s!info <server id> ...... Get the server's authorised roles, IP, and Port.
+                                I'll be cute and give a summary of the server too.
+s!players <server id> ... Get the player list of the sever you specified! ...creep.
+s!status <server id> .... Get the status of the server you specified!
                                 I'll check for 5 seconds before I make my decision.
+s!up <server id> ........ Startup the server.
 
 Controls:
 s!fuckoff ............... Shut me down, daddy.
-s!help .................. Ask me for help... you dumbass
+s!help .................. Ask me for help ... you dumbass.
+s!status ................ Get the status of every known server.
 
 The server ids I know are:
-FTB ...... Chris' FTB Minecraft Server
+FTB ...... Chris' FTB Minecraft Server.
+JMC ...... Chris' Java 1.16 Server.
+
 ```
 '''
+PLAYER_LIST = 'Player list:'
 PREFIX= 's!'
 SERVER_BATCH = 'start.bat'
 SERVER_IDS={
     'FTB': {
-        'authorised_roles': ['Minecraft', 'Creator'],
-        'cwd': 'C:\\Users\\User\\Documents\\MC Server',
-        'host_ip': os.environ['FTB_SERVER_IP'], 
+        'authorized_roles': ['Minecraft', 'Creator'],
+        'cwd': 'C:\\Users\\User\\Documents\\MC Server\\FTB',
+        'description': "A server for FTB Ultimate Reloaded v1.9.0 on Minecraft v1.12.2.",
+        'host_ip': os.environ['LOCAL_SERVER_IP'], 
         'host_port': 25565,
         'process': None,
-        'log': None
+        'log': '\\logs\\latest.log'
+    },
+    'JMC': {
+        'authorized_roles': ['Minecraft', 'Creator'],
+        'cwd': 'C:\\Users\\User\\Documents\\MC Server\\JMC',
+        'description': "A server for Minecraft Java Edition: Nether Update",
+        'host_ip': os.environ['LOCAL_SERVER_IP'], 
+        'host_port': 25566,
+        'process': None,
+        'log': '\\logs\\latest.log'
     }
 }
 
@@ -51,7 +64,8 @@ bot = commands.Bot(command_prefix=PREFIX)
 
 # Append custom messages to all sent messages
 async def send_message(message, response):
-    await message.channel.send(response + '\nOH! And daddy is going to work on my s!players command next!!')
+    addition = ''
+    await message.channel.send(response + addition)
 
 # Get details for a specified server
 def get_server_details(server_id):
@@ -67,14 +81,14 @@ def get_server_status(server_id):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(5)
         if sock.connect_ex((server_details['host_ip'], server_details['host_port'])) == 0:
-            return f'The {server_id} server is up.'
+            return f'The {server_id} server is up @ {server_details["host_ip"]}:{server_details["host_port"]}.'
         else:
             return f'The {server_id} server is down.'
 
 # Validate the author's roles against an authorised role list
-def validate_roles(author_roles, authorised_roles):
+def validate_roles(author_roles, authorized_roles):
     for role in author_roles:
-        if role.name in authorised_roles:
+        if role.name in authorized_roles:
             return True
 
     return False
@@ -118,21 +132,60 @@ async def server_down(message, server_id):
     if isinstance(server_details, str): return server_details
 
     author_roles = message.author.roles
-    authorised_roles = server_details['authorised_roles']
+    authorized_roles = server_details['authorized_roles']
 
-    if validate_roles(author_roles, authorised_roles):
-        response_status = await server_status(message, server_id)
+    if validate_roles(author_roles, authorized_roles):
+        response_status = get_server_status( server_id)
         if 'up' in response_status:
-            return 'This is yet to be implemented!'
-        else:
-            return f'You just wasted my time. {response_status} I\'d very much like you to pay attention next time.'
+            player_check = await server_players(message, server_id) ## This should be refactored. If a server command should be called, then something should be a helper.
+
+            if PLAYER_LIST not in player_check:
+                print('/stop', file=server_details['process'].stdin, flush=True)
+                server_details['process'].terminate()
+                return f'Server {server_id} has been shutdown.'
+            else:
+                response_status = player_check
+
+        return f'You just wasted my time. {response_status} I\'d very much like you to pay attention next time.'
         
-    return f'Sorry, but no. Only {authorised_roles} roles can do this.'
+    return f'Sorry, but no. Only {authorized_roles} roles can do this.'
+
+async def server_info(message, server_id):
+        server_details = get_server_details(server_id)  
+        if isinstance(server_details, str): return server_details
+
+        info = f''' server {server_id}:
+        ```
+        {server_details["description"]}
+        
+        IP: {server_details["host_ip"]}:{server_details["host_port"]}
+        Authorized roles: {server_details["authorized_roles"]}
+        ```'''
+
+        await message.channel.send(info)
 
 async def server_players(message, server_id):
-    await message.channel.send(f'Checking the current players on the {server_id} server...')
+    response_status = get_server_status(server_id)
+    if 'up' in response_status:
+        server_details = get_server_details(server_id)  
+        if isinstance(server_details, str): return server_details
 
-    return 'This is yet to be implemented!'
+        with open(server_details['cwd'] + server_details['log'], 'r') as file:
+            file.read()
+            print('/list', file=server_details['process'].stdin, flush=True)
+            time.sleep(1)
+
+            players = file.readline().rsplit(':', 1)[-1]
+
+            if players.replace(' \n', ''):
+                return f'{PLAYER_LIST}\n ```{players}```'
+            else:
+                return 'There are no players connected. *Guess they don\'t like you huh?*'
+        
+        return 'There was an error reading the logs!'
+
+    else:
+        return f'You just wasted my time. {response_status} I\'d very much like you to pay attention next time.'
 
 async def server_status(message, server_id):
     await message.channel.send(f'Checking the {server_id} server. Please give me 5 seconds...')
@@ -146,15 +199,14 @@ async def server_start(message, server_id):
     if isinstance(server_details, str): return server_details
 
     author_roles = message.author.roles
-    authorised_roles = server_details['authorised_roles']
+    authorized_roles = server_details['authorized_roles']
 
-    if validate_roles(author_roles, authorised_roles):
-        if 'down' in get_server_status(server_id):
-            server_details['log'] = open(f'{server_id}/Log_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.txt', 'w+')
+    if validate_roles(author_roles, authorized_roles):
+        response_status = get_server_status(server_id)
+        if 'down' in response_status:
             server_details['process'] = subprocess.Popen(["cmd.exe"],  
                                                             creationflags=subprocess.CREATE_NEW_CONSOLE ,
-                                                            stdin=subprocess.PIPE, 
-                                                            stdout=server_details['log'],
+                                                            stdin=subprocess.PIPE,
                                                             cwd=server_details['cwd'],
                                                             text=True)
             print(SERVER_BATCH, file=server_details['process'].stdin, flush=True)
@@ -163,17 +215,17 @@ async def server_start(message, server_id):
             while time.time() < t_end:
                 response_status = get_server_status(server_id)
                 if 'up' in response_status: 
-                    print('/list', file=server_details['process'].stdin, flush=True)
                     return response_status
 
             return f'There was an issue encountered when starting the {server_id} server... What did you do wrong?'
-        else:
-            return f'You just wasted my time. {response_status} I\'d very much like you to pay attention next time.'
         
-    return f'Sorry, but no. Only {authorised_roles} roles can do this.'
+        return f'You just wasted my time. {response_status} I\'d very much like you to pay attention next time.'
+        
+    return f'Sorry, but no. Only {authorized_roles} roles can do this.'
 
 SERVER_COMMANDS = {
     'down': server_down,
+    'info': server_info,
     'players': server_players,
     'status': server_status,
     'up': server_start
