@@ -1,6 +1,7 @@
 import helpers
 from definitions import HELP, SERVER_IDS
 
+
 async def shut_down(message):
     if helpers.validate_roles(message.author.roles, ['Creator']):
         await message.channel.send('UGH FINE. I should warn you though, this isn\'t complete yet. You could orphan a server!')
