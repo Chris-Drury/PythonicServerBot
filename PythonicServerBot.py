@@ -35,13 +35,17 @@ async def on_message(message):
     if message.content.startswith(definitions.PREFIX):
         response = None
         message.content = message.content[2:]
-        split_message = message.content.split()
+        split_message = message.content.split(maxsplit=2)
     else:
         return 
 
     if len(split_message) > 2:
         await message.channel.send('Wooooow look at you, you can make big commands!')
-        response = 'Keep them short.'
+
+        if 'send' in split_message[0]:
+            response = await SERVER_COMMANDS['send'](message, split_message[1], split_message[2])
+        else:
+            response = 'Keep them short.'
     elif len(split_message) > 1:
         if split_message[0] in SERVER_COMMANDS.keys():
             response = await SERVER_COMMANDS[split_message[0]](message, split_message[1])

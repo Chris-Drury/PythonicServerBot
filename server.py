@@ -66,11 +66,36 @@ async def server_players(message, server_id):
 
     else:
         return f'You just wasted my time. {response_status} I\'d very much like you to pay attention next time.'
+        
+async def server_restart(message, server_id):
+    await message.channel.send(f'Restarting the {server_id} server...')
+    response = await server_down(message, server_id)
+    if 'shutdown' in response:
+        response = await server_start(message, server_id)
+    
+    return response
 
 async def server_status(message, server_id):
     await message.channel.send(f'Checking the {server_id} server. Please give me 5 seconds...')
 
     return helpers.get_server_status(server_id)
+
+async def server_send_cmd(message, server_id, command):
+    server_details = helpers.get_server_details(server_id)
+    if isinstance(server_details, str): return server_details
+
+    author_roles = message.author.roles
+    authorized_roles = server_details['authorized_roles']
+
+    if helpers.validate_roles(author_roles, authorized_roles):
+        response_status = helpers.get_server_status(server_id)
+        if 'up' in response_status:
+            print(command, file=server_details['process'].stdin, flush=True)
+            return f'The command {command} was sent. You\'re welcome.' 
+
+        return f'You just wasted my time. {response_status} I\'d very much like you to pay attention next time.'
+        
+    return f'Sorry, but no. Only {authorized_roles} roles can do this.'
 
 async def server_start(message, server_id):
     await message.channel.send(f'Starting up the {server_id} server. Please give me up to 15 minutes...')
@@ -107,6 +132,8 @@ SERVER_COMMANDS = {
     'down': server_down,
     'info': server_info,
     'players': server_players,
+    'restart': server_restart,
     'status': server_status,
+    'send': server_send_cmd,
     'up': server_start
 }
