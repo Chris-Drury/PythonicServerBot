@@ -1,5 +1,6 @@
 import os
 
+ADMIN = 'Creator'
 DISCORD_TOKEN = os.environ['DISCORD_TOKEN']
 HELP = '''Here are all of my commands:
 ```

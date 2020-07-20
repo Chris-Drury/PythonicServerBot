@@ -87,7 +87,7 @@ async def server_send_cmd(message, server_id, command):
     author_roles = message.author.roles
     authorized_roles = server_details['authorized_roles']
 
-    if helpers.validate_roles(author_roles, authorized_roles):
+    if  helpers.validate_roles(author_roles, definitions.ADMIN):
         response_status = helpers.get_server_status(server_id)
         if 'up' in response_status:
             print(command, file=server_details['process'].stdin, flush=True)
